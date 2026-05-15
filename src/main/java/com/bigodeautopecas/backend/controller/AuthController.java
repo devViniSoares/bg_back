@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin
 public class AuthController {
 
     private final AuthenticationManager authManager;
@@ -35,9 +34,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest req) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.email(), req.senha()));
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+        try {
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.email(), req.senha()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Email ou senha inválidos.");
+        }
 
         Usuario u = usuarioRepo.findByEmail(req.email()).orElseThrow();
         String token = jwtUtil.gerarToken(u.getEmail(), u.getTipo());
