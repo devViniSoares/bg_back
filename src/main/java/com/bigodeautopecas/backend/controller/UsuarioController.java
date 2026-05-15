@@ -2,9 +2,7 @@ package com.bigodeautopecas.backend.controller;
 
 import com.bigodeautopecas.backend.model.Usuario;
 import com.bigodeautopecas.backend.service.UsuarioService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.List;
 
@@ -13,8 +11,11 @@ import java.util.List;
 @CrossOrigin
 public class UsuarioController {
 
-    @Autowired
-    private UsuarioService service;
+    private final UsuarioService service;
+
+    public UsuarioController(UsuarioService service) {
+        this.service = service;
+    }
 
     @GetMapping
     public List<Usuario> listar() {
