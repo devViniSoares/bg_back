@@ -2,9 +2,10 @@ package com.bigodeautopecas.backend.controller;
 
 import com.bigodeautopecas.backend.model.Usuario;
 import com.bigodeautopecas.backend.service.UsuarioService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/usuarios")
@@ -18,8 +19,8 @@ public class UsuarioController {
     }
 
     @GetMapping
-    public List<Usuario> listar() {
-        return service.listar();
+    public Page<Usuario> listar(@PageableDefault(size = 20) Pageable pageable) {
+        return service.listar(pageable);
     }
 
     @GetMapping("/{id}")
@@ -34,12 +35,13 @@ public class UsuarioController {
 
     @PutMapping("/{id}")
     public Usuario atualizar(@PathVariable Long id, @RequestBody Usuario novoUsuario) {
-
         Usuario usuario = service.buscarPorId(id);
 
         usuario.setNome(novoUsuario.getNome());
         usuario.setEmail(novoUsuario.getEmail());
-        usuario.setSenha(novoUsuario.getSenha());
+        if (novoUsuario.getSenha() != null && !novoUsuario.getSenha().isBlank()) {
+            usuario.setSenha(novoUsuario.getSenha());
+        }
         usuario.setTipo(novoUsuario.getTipo());
 
         return service.salvar(usuario);

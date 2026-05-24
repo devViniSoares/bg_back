@@ -1,6 +1,7 @@
 package com.bigodeautopecas.backend.security;
 
 import com.bigodeautopecas.backend.service.UsuarioDetailsService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -27,6 +29,9 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final UsuarioDetailsService usuarioDetailsService;
+
+    @Value("${cors.origins:http://localhost:3000,http://localhost:5173}")
+    private String corsOrigins;
 
     public SecurityConfig(JwtFilter jwtFilter, UsuarioDetailsService usuarioDetailsService) {
         this.jwtFilter = jwtFilter;
@@ -40,15 +45,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Rotas públicas
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
-                // Apenas ADMIN gerencia produtos, usuários e relatórios
                 .requestMatchers(HttpMethod.POST,   "/produtos/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT,    "/produtos/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/produtos/**").hasRole("ADMIN")
                 .requestMatchers("/usuarios/**").hasRole("ADMIN")
-                // Demais rotas exigem autenticação
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -59,7 +62,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(Arrays.asList(corsOrigins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -2,10 +2,11 @@ package com.bigodeautopecas.backend.controller;
 
 import com.bigodeautopecas.backend.model.Produto;
 import com.bigodeautopecas.backend.service.ProdutoService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/produtos")
@@ -19,12 +20,13 @@ public class ProdutoController {
     }
 
     @GetMapping
-    public List<Produto> listar(
+    public Page<Produto> listar(
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) String marca,
             @RequestParam(required = false) String modelo,
-            @RequestParam(required = false) String nome) {
-        return service.listarComFiltros(categoria, marca, modelo, nome);
+            @RequestParam(required = false) String nome,
+            @PageableDefault(size = 20, sort = "nome") Pageable pageable) {
+        return service.listarComFiltros(categoria, marca, modelo, nome, pageable);
     }
 
     @GetMapping("/{id}")

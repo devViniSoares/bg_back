@@ -3,12 +3,13 @@ package com.bigodeautopecas.backend.controller;
 import com.bigodeautopecas.backend.model.Pedido;
 import com.bigodeautopecas.backend.service.PedidoService;
 import com.bigodeautopecas.backend.service.UsuarioService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/pedidos")
@@ -24,9 +25,10 @@ public class PedidoController {
     }
 
     @GetMapping
-    public List<Pedido> listar(Authentication auth) {
-        if (isAdmin(auth)) return service.listar();
-        return service.listarPorEmail(auth.getName());
+    public Page<Pedido> listar(Authentication auth,
+            @PageableDefault(size = 20) Pageable pageable) {
+        if (isAdmin(auth)) return service.listar(pageable);
+        return service.listarPorEmail(auth.getName(), pageable);
     }
 
     @GetMapping("/{id}")
@@ -45,7 +47,6 @@ public class PedidoController {
         return service.salvar(pedido);
     }
 
-    /** ADMIN: altera qualquer campo. CLIENTE: apenas cancela o próprio pedido. */
     @PutMapping("/{id}")
     public Pedido atualizar(@PathVariable Long id, @RequestBody Pedido novoPedido, Authentication auth) {
         Pedido pedido = service.buscarPorId(id);
@@ -63,7 +64,6 @@ public class PedidoController {
         return service.salvar(pedido);
     }
 
-    /** Exclusão física restrita a ADMIN. CLIENTE cancela via PUT. */
     @DeleteMapping("/{id}")
     public void deletar(@PathVariable Long id, Authentication auth) {
         if (!isAdmin(auth)) {

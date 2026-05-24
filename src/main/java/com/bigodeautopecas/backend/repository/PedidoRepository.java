@@ -1,10 +1,10 @@
 package com.bigodeautopecas.backend.repository;
 
 import com.bigodeautopecas.backend.model.Pedido;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-
 public interface PedidoRepository extends JpaRepository<Pedido, Long> {
-    List<Pedido> findByUsuarioEmail(String email);
+    Page<Pedido> findByUsuarioEmail(String email, Pageable pageable);
 }
