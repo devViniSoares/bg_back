@@ -2,10 +2,10 @@ package com.bigodeautopecas.backend.service;
 
 import com.bigodeautopecas.backend.model.Usuario;
 import com.bigodeautopecas.backend.repository.UsuarioRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class UsuarioService {
@@ -18,8 +18,8 @@ public class UsuarioService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public List<Usuario> listar() {
-        return repo.findAll();
+    public Page<Usuario> listar(Pageable pageable) {
+        return repo.findAll(pageable);
     }
 
     public Usuario buscarPorId(Long id) {
@@ -33,7 +33,6 @@ public class UsuarioService {
     }
 
     public Usuario salvar(Usuario usuario) {
-        // Garante que a senha sempre seja armazenada com hash BCrypt
         if (usuario.getSenha() != null && !usuario.getSenha().startsWith("$2")) {
             usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
         }

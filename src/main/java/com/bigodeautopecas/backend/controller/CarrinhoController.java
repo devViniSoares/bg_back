@@ -1,8 +1,10 @@
 package com.bigodeautopecas.backend.controller;
 
+import com.bigodeautopecas.backend.dto.AdicionarItemCarrinhoRequest;
 import com.bigodeautopecas.backend.model.Carrinho;
 import com.bigodeautopecas.backend.service.CarrinhoService;
 import com.bigodeautopecas.backend.service.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -42,6 +44,18 @@ public class CarrinhoController {
             carrinho.setUsuario(usuarioService.buscarPorEmail(auth.getName()));
         }
         return service.salvar(carrinho);
+    }
+
+    /** Adiciona ou incrementa um item no carrinho do usuário autenticado. */
+    @PostMapping("/item")
+    public Carrinho adicionarItem(@Valid @RequestBody AdicionarItemCarrinhoRequest req, Authentication auth) {
+        return service.adicionarItem(auth.getName(), req.produtoId(), req.quantidade());
+    }
+
+    /** Remove um item pelo ID do item do carrinho do usuário autenticado. */
+    @DeleteMapping("/item/{itemId}")
+    public Carrinho removerItem(@PathVariable Long itemId, Authentication auth) {
+        return service.removerItem(auth.getName(), itemId);
     }
 
     @PutMapping("/{id}")
