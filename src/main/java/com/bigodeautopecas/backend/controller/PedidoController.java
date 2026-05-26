@@ -8,6 +8,7 @@ import com.bigodeautopecas.backend.dto.PedidoRequest;
 import com.bigodeautopecas.backend.model.ItemPedido;
 import com.bigodeautopecas.backend.model.Pedido;
 import com.bigodeautopecas.backend.model.Produto;
+import com.bigodeautopecas.backend.service.EmailService;
 import com.bigodeautopecas.backend.service.PagamentoService;
 import com.bigodeautopecas.backend.service.PedidoService;
 import com.bigodeautopecas.backend.service.UsuarioService;
@@ -37,6 +38,9 @@ public class PedidoController {
     private final PedidoService service;
     private final UsuarioService usuarioService;
     private final PagamentoService pagamentoService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private EmailService emailService;
 
     public PedidoController(PedidoService service, UsuarioService usuarioService, PagamentoService pagamentoService) {
         this.service = service;
@@ -117,6 +121,10 @@ public class PedidoController {
         if ("APROVADO".equals(resp.status())) {
             pedido.setStatus("CONFIRMADO");
             service.salvar(pedido);
+            if (emailService != null && pedido.getUsuario() != null) {
+                emailService.enviarConfirmacaoPagamento(
+                        pedido.getUsuario().getEmail(), id, resp.codigoTransacao());
+            }
         }
 
         return resp;
