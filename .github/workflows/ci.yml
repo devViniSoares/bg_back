@@ -23,7 +23,9 @@ jobs:
           cache: 'maven'
 
       - name: Compilar e executar testes
-        run: ./mvnw test --no-transfer-progress
+        run: |
+          chmod +x mvnw
+          ./mvnw test --no-transfer-progress
         env:
           JWT_SECRET: ci-test-jwt-secret-key-minimum-256-bits-for-testing-only
 
@@ -52,7 +54,9 @@ jobs:
           cache: 'maven'
 
       - name: Verificar dependências vulneráveis (OWASP)
-        run: ./mvnw dependency:resolve --no-transfer-progress
+        run: |
+          chmod +x mvnw
+          ./mvnw dependency:resolve --no-transfer-progress
         continue-on-error: true
 
   docker-build:
