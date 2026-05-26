@@ -1,10 +1,13 @@
 package com.bigodeautopecas.backend.security;
 
+import com.bigodeautopecas.backend.config.RateLimitFilter;
 import com.bigodeautopecas.backend.service.UsuarioDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -28,13 +31,17 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UsuarioDetailsService usuarioDetailsService;
 
     @Value("${cors.origins:http://localhost:3000,http://localhost:5173}")
     private String corsOrigins;
 
-    public SecurityConfig(JwtFilter jwtFilter, UsuarioDetailsService usuarioDetailsService) {
+    public SecurityConfig(JwtFilter jwtFilter,
+                          RateLimitFilter rateLimitFilter,
+                          UsuarioDetailsService usuarioDetailsService) {
         this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilter;
         this.usuarioDetailsService = usuarioDetailsService;
     }
 
@@ -46,6 +53,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/cep/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                 .requestMatchers(HttpMethod.POST,   "/produtos/**").hasRole("ADMIN")
@@ -54,6 +63,14 @@ public class SecurityConfig {
                 .requestMatchers("/usuarios/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write("{\"erro\":\"Autenticação necessária\"}");
+                })
+            )
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

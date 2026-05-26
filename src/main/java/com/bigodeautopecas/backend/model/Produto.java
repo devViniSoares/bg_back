@@ -2,10 +2,16 @@ package com.bigodeautopecas.backend.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
 
 @Data
 @Entity
 @Table(name = "produto")
+@EntityListeners(AuditingEntityListener.class)
 public class Produto {
 
     @Id
@@ -32,4 +38,11 @@ public class Produto {
 
     /** URL da imagem do produto exibida no catálogo e na página de detalhes */
     private String imagemUrl;
+
+    @CreatedDate
+    @Column(updatable = false)
+    private LocalDateTime criadoEm;
+
+    @LastModifiedDate
+    private LocalDateTime atualizadoEm;
 }

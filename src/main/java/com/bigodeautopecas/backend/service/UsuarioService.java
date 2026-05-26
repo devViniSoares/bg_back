@@ -1,5 +1,6 @@
 package com.bigodeautopecas.backend.service;
 
+import com.bigodeautopecas.backend.exception.ResourceNotFoundException;
 import com.bigodeautopecas.backend.model.Usuario;
 import com.bigodeautopecas.backend.repository.UsuarioRepository;
 import org.springframework.data.domain.Page;
@@ -24,12 +25,12 @@ public class UsuarioService {
 
     public Usuario buscarPorId(Long id) {
         return repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + id));
     }
 
     public Usuario buscarPorEmail(String email) {
         return repo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + email));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + email));
     }
 
     public Usuario salvar(Usuario usuario) {
@@ -40,6 +41,7 @@ public class UsuarioService {
     }
 
     public void deletar(Long id) {
+        buscarPorId(id);
         repo.deleteById(id);
     }
 }

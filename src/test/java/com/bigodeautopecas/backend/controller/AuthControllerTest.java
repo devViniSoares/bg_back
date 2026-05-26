@@ -8,9 +8,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -59,7 +61,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void login_deveRetornarTokenJwtComCredenciaisValidas() throws Exception {
+    void login_deveRetornarTokenJwtERefreshTokenComCredenciaisValidas() throws Exception {
         Map<String, String> cadastro = Map.of(
                 "nome", "Login Teste",
                 "email", "logintest@bigode.com",
@@ -78,7 +80,68 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(login)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.tipo").value("CLIENTE"));
+    }
+
+    @Test
+    void refresh_deveRetornarNovosTokensComRefreshTokenValido() throws Exception {
+        Map<String, String> cadastro = Map.of(
+                "nome", "Refresh Teste",
+                "email", "refreshtest@bigode.com",
+                "senha", "senha123"
+        );
+        mockMvc.perform(post("/auth/cadastro")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(cadastro)));
+
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                        "email", "refreshtest@bigode.com",
+                        "senha", "senha123"
+                ))))
+                .andReturn();
+
+        Map<?, ?> loginBody = objectMapper.readValue(loginResult.getResponse().getContentAsString(), Map.class);
+        String refreshToken = (String) loginBody.get("refreshToken");
+        assertNotNull(refreshToken);
+
+        mockMvc.perform(post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    void refresh_deveRetornar401ComTokenDeAcessoComum() throws Exception {
+        Map<String, String> cadastro = Map.of(
+                "nome", "Refresh Invalido",
+                "email", "refreshinvalid@bigode.com",
+                "senha", "senha123"
+        );
+        mockMvc.perform(post("/auth/cadastro")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(cadastro)));
+
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                        "email", "refreshinvalid@bigode.com",
+                        "senha", "senha123"
+                ))))
+                .andReturn();
+
+        Map<?, ?> loginBody = objectMapper.readValue(loginResult.getResponse().getContentAsString(), Map.class);
+        String accessToken = (String) loginBody.get("token");
+
+        // Access token não pode ser usado no endpoint de refresh
+        mockMvc.perform(post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("refreshToken", accessToken))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
