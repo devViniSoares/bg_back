@@ -60,7 +60,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST,   "/produtos/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT,    "/produtos/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/produtos/**").hasRole("ADMIN")
-                .requestMatchers("/usuarios/**").hasRole("ADMIN")
+                .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
@@ -80,7 +80,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(Arrays.asList(corsOrigins.split(",")));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

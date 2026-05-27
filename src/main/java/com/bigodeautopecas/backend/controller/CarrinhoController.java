@@ -1,6 +1,7 @@
 package com.bigodeautopecas.backend.controller;
 
 import com.bigodeautopecas.backend.dto.AdicionarItemCarrinhoRequest;
+import com.bigodeautopecas.backend.dto.CarrinhoDTO;
 import com.bigodeautopecas.backend.model.Carrinho;
 import com.bigodeautopecas.backend.service.CarrinhoService;
 import com.bigodeautopecas.backend.service.UsuarioService;
@@ -35,7 +36,7 @@ public class CarrinhoController {
     @GetMapping
     @Operation(summary = "Listar carrinhos", description = "Admin vê todos; cliente vê apenas o seu")
     @ApiResponse(responseCode = "200", description = "Lista retornada")
-    public List<Carrinho> listar(Authentication auth) {
+    public List<CarrinhoDTO> listar(Authentication auth) {
         if (isAdmin(auth)) return service.listar();
         return service.listarPorEmail(auth.getName());
     }
@@ -47,9 +48,9 @@ public class CarrinhoController {
         @ApiResponse(responseCode = "403", description = "Acesso negado"),
         @ApiResponse(responseCode = "404", description = "Carrinho não encontrado")
     })
-    public Carrinho buscarPorId(@PathVariable Long id, Authentication auth) {
-        Carrinho carrinho = service.buscarPorId(id);
-        if (!isAdmin(auth)) verificarPropriedade(carrinho.getUsuario().getEmail(), auth.getName());
+    public CarrinhoDTO buscarPorId(@PathVariable Long id, Authentication auth) {
+        CarrinhoDTO carrinho = service.buscarPorIdComoDTO(id);
+        if (!isAdmin(auth)) verificarPropriedade(carrinho.usuarioEmail(), auth.getName());
         return carrinho;
     }
 
@@ -57,11 +58,11 @@ public class CarrinhoController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Criar carrinho")
     @ApiResponse(responseCode = "201", description = "Carrinho criado")
-    public Carrinho salvar(@RequestBody Carrinho carrinho, Authentication auth) {
+    public CarrinhoDTO salvar(@RequestBody Carrinho carrinho, Authentication auth) {
         if (!isAdmin(auth)) {
             carrinho.setUsuario(usuarioService.buscarPorEmail(auth.getName()));
         }
-        return service.salvar(carrinho);
+        return service.salvarComoDTO(carrinho);
     }
 
     @PostMapping("/item")
@@ -70,7 +71,7 @@ public class CarrinhoController {
         @ApiResponse(responseCode = "200", description = "Item adicionado"),
         @ApiResponse(responseCode = "404", description = "Produto não encontrado")
     })
-    public Carrinho adicionarItem(@Valid @RequestBody AdicionarItemCarrinhoRequest req, Authentication auth) {
+    public CarrinhoDTO adicionarItem(@Valid @RequestBody AdicionarItemCarrinhoRequest req, Authentication auth) {
         return service.adicionarItem(auth.getName(), req.produtoId(), req.quantidade());
     }
 
@@ -80,21 +81,19 @@ public class CarrinhoController {
         @ApiResponse(responseCode = "200", description = "Item removido"),
         @ApiResponse(responseCode = "404", description = "Item não encontrado")
     })
-    public Carrinho removerItem(@PathVariable Long itemId, Authentication auth) {
+    public CarrinhoDTO removerItem(@PathVariable Long itemId, Authentication auth) {
         return service.removerItem(auth.getName(), itemId);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar carrinho")
     @ApiResponse(responseCode = "200", description = "Carrinho atualizado")
-    public Carrinho atualizar(@PathVariable Long id, @RequestBody Carrinho novoCarrinho, Authentication auth) {
-        Carrinho carrinho = service.buscarPorId(id);
-        if (!isAdmin(auth)) verificarPropriedade(carrinho.getUsuario().getEmail(), auth.getName());
+    public CarrinhoDTO atualizar(@PathVariable Long id, @RequestBody Carrinho novoCarrinho, Authentication auth) {
+        CarrinhoDTO existente = service.buscarPorIdComoDTO(id);
+        if (!isAdmin(auth)) verificarPropriedade(existente.usuarioEmail(), auth.getName());
 
-        carrinho.setItens(novoCarrinho.getItens());
-        if (isAdmin(auth)) carrinho.setUsuario(novoCarrinho.getUsuario());
-
-        return service.salvar(carrinho);
+        var novoUsuario = isAdmin(auth) ? novoCarrinho.getUsuario() : null;
+        return service.atualizarItens(id, novoCarrinho.getItens(), novoUsuario);
     }
 
     @DeleteMapping("/{id}")
@@ -106,8 +105,8 @@ public class CarrinhoController {
     })
     public void deletar(@PathVariable Long id, Authentication auth) {
         if (!isAdmin(auth)) {
-            Carrinho carrinho = service.buscarPorId(id);
-            verificarPropriedade(carrinho.getUsuario().getEmail(), auth.getName());
+            CarrinhoDTO carrinho = service.buscarPorIdComoDTO(id);
+            verificarPropriedade(carrinho.usuarioEmail(), auth.getName());
         }
         service.deletar(id);
     }

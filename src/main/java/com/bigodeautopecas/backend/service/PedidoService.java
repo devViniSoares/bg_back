@@ -1,5 +1,9 @@
 package com.bigodeautopecas.backend.service;
 
+import com.bigodeautopecas.backend.dto.ItemPedidoDTO;
+import com.bigodeautopecas.backend.dto.PedidoDTO;
+import com.bigodeautopecas.backend.dto.ProdutoResumoDTO;
+import com.bigodeautopecas.backend.dto.UsuarioResumoDTO;
 import com.bigodeautopecas.backend.exception.EstoqueInsuficienteException;
 import com.bigodeautopecas.backend.exception.ResourceNotFoundException;
 import com.bigodeautopecas.backend.model.ItemPedido;
@@ -27,16 +31,27 @@ public class PedidoService {
         this.produtoRepo = produtoRepo;
     }
 
-    public Page<Pedido> listar(Pageable pageable) {
-        return repo.findAll(pageable);
+    // ── Leitura (retornam DTO) ────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public Page<PedidoDTO> listar(Pageable pageable) {
+        return repo.findAll(pageable).map(this::toDTO);
     }
 
-    public Page<Pedido> listarPorEmail(String email, Pageable pageable) {
-        return repo.findByUsuarioEmail(email, pageable);
+    @Transactional(readOnly = true)
+    public Page<PedidoDTO> listarPorEmail(String email, Pageable pageable) {
+        return repo.findByUsuarioEmail(email, pageable).map(this::toDTO);
     }
+
+    @Transactional(readOnly = true)
+    public PedidoDTO buscarPorIdComoDTO(Long id) {
+        return toDTO(buscarPorId(id));
+    }
+
+    // ── Escrita ───────────────────────────────────────────────────────────────
 
     @Transactional
-    public Pedido salvar(Pedido p) {
+    public PedidoDTO salvarComoDTO(Pedido p) {
         boolean isNovo = p.getId() == null;
 
         if (isNovo && p.getItens() != null) {
@@ -68,9 +83,19 @@ public class PedidoService {
                     salvo.getUsuario().getEmail(), salvo.getId(), salvo.getTotal());
         }
 
-        return salvo;
+        return toDTO(salvo);
     }
 
+    @Transactional
+    public PedidoDTO atualizarStatus(Long id, String status) {
+        Pedido pedido = buscarPorId(id);
+        pedido.setStatus(status);
+        return toDTO(repo.save(pedido));
+    }
+
+    // ── Uso interno ──────────────────────────────────────────────────────────
+
+    /** Retorna entidade para uso interno (verificações, pagamento). */
     public Pedido buscarPorId(Long id) {
         return repo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado: " + id));
@@ -79,5 +104,45 @@ public class PedidoService {
     public void deletar(Long id) {
         buscarPorId(id);
         repo.deleteById(id);
+    }
+
+    // ── Mapeamento ───────────────────────────────────────────────────────────
+
+    /** Deve ser chamado dentro de um contexto @Transactional para que o lazy loading funcione. */
+    private PedidoDTO toDTO(Pedido p) {
+        UsuarioResumoDTO usuario = null;
+        if (p.getUsuario() != null) {
+            usuario = new UsuarioResumoDTO(
+                    p.getUsuario().getId(),
+                    p.getUsuario().getNome(),
+                    p.getUsuario().getEmail()
+            );
+        }
+
+        var itens = p.getItens().stream()
+                .map(i -> new ItemPedidoDTO(
+                        i.getId(),
+                        i.getQuantidade(),
+                        i.getPrecoUnitario(),
+                        new ProdutoResumoDTO(
+                                i.getProduto().getId(),
+                                i.getProduto().getNome(),
+                                i.getProduto().getPreco(),
+                                i.getProduto().getImagemUrl(),
+                                i.getProduto().getCategoria(),
+                                i.getProduto().getMarca()
+                        )
+                )).toList();
+
+        return new PedidoDTO(
+                p.getId(),
+                p.getTotal(),
+                p.getStatus(),
+                usuario,
+                p.getEnderecoEntrega(),
+                itens,
+                p.getCriadoEm(),
+                p.getAtualizadoEm()
+        );
     }
 }

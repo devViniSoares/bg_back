@@ -1,5 +1,6 @@
 package com.bigodeautopecas.backend.service;
 
+import com.bigodeautopecas.backend.dto.CarrinhoDTO;
 import com.bigodeautopecas.backend.exception.ResourceNotFoundException;
 import com.bigodeautopecas.backend.model.Carrinho;
 import com.bigodeautopecas.backend.model.ItemCarrinho;
@@ -60,11 +61,11 @@ class CarrinhoServiceTest {
         carrinhoVazio.setUsuario(usuario);
         when(carrinhoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Carrinho resultado = service.adicionarItem("cliente@teste.com", 1L, 2);
+        CarrinhoDTO resultado = service.adicionarItem("cliente@teste.com", 1L, 2);
 
         assertNotNull(resultado);
-        assertEquals(1, resultado.getItens().size());
-        assertEquals(2, resultado.getItens().get(0).getQuantidade());
+        assertEquals(1, resultado.itens().size());
+        assertEquals(2, resultado.itens().get(0).quantidade());
         verify(usuarioRepo).findByEmail("cliente@teste.com");
     }
 
@@ -83,10 +84,10 @@ class CarrinhoServiceTest {
         when(carrinhoRepo.findByUsuarioEmail("cliente@teste.com")).thenReturn(Optional.of(carrinho));
         when(carrinhoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Carrinho resultado = service.adicionarItem("cliente@teste.com", 1L, 2);
+        CarrinhoDTO resultado = service.adicionarItem("cliente@teste.com", 1L, 2);
 
-        assertEquals(1, resultado.getItens().size());
-        assertEquals(5, resultado.getItens().get(0).getQuantidade()); // 3 + 2
+        assertEquals(1, resultado.itens().size());
+        assertEquals(5, resultado.itens().get(0).quantidade()); // 3 + 2
     }
 
     @Test

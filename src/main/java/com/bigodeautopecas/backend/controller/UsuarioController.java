@@ -14,6 +14,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/usuarios")
@@ -76,6 +79,24 @@ public class UsuarioController {
             usuario.setSenha(req.senha());
         }
         usuario.setTipo(req.tipo());
+        return service.salvar(usuario);
+    }
+
+    @PatchMapping("/{id}/tipo")
+    @Operation(summary = "Alterar tipo do usuário (ADMIN)", description = "Altera o tipo de um usuário para ADMIN ou CLIENTE")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Tipo alterado"),
+        @ApiResponse(responseCode = "400", description = "Tipo inválido"),
+        @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
+    })
+    public Usuario alterarTipo(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String tipo = body.get("tipo");
+        if (tipo == null || !tipo.matches("ADMIN|CLIENTE")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Tipo inválido. Use ADMIN ou CLIENTE");
+        }
+        Usuario usuario = service.buscarPorId(id);
+        usuario.setTipo(tipo);
         return service.salvar(usuario);
     }
 

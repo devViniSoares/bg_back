@@ -4,6 +4,7 @@ import com.bigodeautopecas.backend.dto.AtualizarPedidoRequest;
 import com.bigodeautopecas.backend.dto.ItemPedidoRequest;
 import com.bigodeautopecas.backend.dto.PagamentoRequest;
 import com.bigodeautopecas.backend.dto.PagamentoResponse;
+import com.bigodeautopecas.backend.dto.PedidoDTO;
 import com.bigodeautopecas.backend.dto.PedidoRequest;
 import com.bigodeautopecas.backend.model.ItemPedido;
 import com.bigodeautopecas.backend.model.Pedido;
@@ -51,7 +52,7 @@ public class PedidoController {
     @GetMapping
     @Operation(summary = "Listar pedidos", description = "Admin vê todos; cliente vê apenas os seus")
     @ApiResponse(responseCode = "200", description = "Lista retornada")
-    public Page<Pedido> listar(Authentication auth,
+    public Page<PedidoDTO> listar(Authentication auth,
             @PageableDefault(size = 20) Pageable pageable) {
         if (isAdmin(auth)) return service.listar(pageable);
         return service.listarPorEmail(auth.getName(), pageable);
@@ -64,9 +65,9 @@ public class PedidoController {
         @ApiResponse(responseCode = "403", description = "Acesso negado"),
         @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
     })
-    public Pedido buscarPorId(@PathVariable Long id, Authentication auth) {
-        Pedido pedido = service.buscarPorId(id);
-        if (!isAdmin(auth)) verificarPropriedade(pedido.getUsuario().getEmail(), auth.getName());
+    public PedidoDTO buscarPorId(@PathVariable Long id, Authentication auth) {
+        PedidoDTO pedido = service.buscarPorIdComoDTO(id);
+        if (!isAdmin(auth)) verificarPropriedade(pedido.usuario().email(), auth.getName());
         return pedido;
     }
 
@@ -78,7 +79,7 @@ public class PedidoController {
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
         @ApiResponse(responseCode = "409", description = "Estoque insuficiente")
     })
-    public Pedido salvar(@Valid @RequestBody PedidoRequest req, Authentication auth) {
+    public PedidoDTO salvar(@Valid @RequestBody PedidoRequest req, Authentication auth) {
         Pedido pedido = new Pedido();
         pedido.setUsuario(usuarioService.buscarPorEmail(auth.getName()));
         pedido.setStatus("AGUARDANDO");
@@ -94,7 +95,7 @@ public class PedidoController {
         }).toList();
 
         pedido.setItens(itens);
-        return service.salvar(pedido);
+        return service.salvarComoDTO(pedido);
     }
 
     @PostMapping("/{id}/pagamento")
@@ -107,23 +108,22 @@ public class PedidoController {
     public PagamentoResponse processarPagamento(@PathVariable Long id,
             @Valid @RequestBody PagamentoRequest req,
             Authentication auth) {
-        Pedido pedido = service.buscarPorId(id);
-        if (!isAdmin(auth)) verificarPropriedade(pedido.getUsuario().getEmail(), auth.getName());
+        PedidoDTO pedidoDTO = service.buscarPorIdComoDTO(id);
+        if (!isAdmin(auth)) verificarPropriedade(pedidoDTO.usuario().email(), auth.getName());
 
-        if (!"AGUARDANDO".equals(pedido.getStatus())) {
+        if (!"AGUARDANDO".equals(pedidoDTO.status())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Pedido não está aguardando pagamento. Status atual: " + pedido.getStatus());
+                    "Pedido não está aguardando pagamento. Status atual: " + pedidoDTO.status());
         }
 
-        PagamentoRequest pagReq = new PagamentoRequest(id, pedido.getTotal(), req.metodoPagamento());
+        PagamentoRequest pagReq = new PagamentoRequest(id, pedidoDTO.total(), req.metodoPagamento());
         PagamentoResponse resp = pagamentoService.processar(pagReq);
 
         if ("APROVADO".equals(resp.status())) {
-            pedido.setStatus("CONFIRMADO");
-            service.salvar(pedido);
-            if (emailService != null && pedido.getUsuario() != null) {
+            service.atualizarStatus(id, "CONFIRMADO");
+            if (emailService != null) {
                 emailService.enviarConfirmacaoPagamento(
-                        pedido.getUsuario().getEmail(), id, resp.codigoTransacao());
+                        pedidoDTO.usuario().email(), id, resp.codigoTransacao());
             }
         }
 
@@ -138,20 +138,19 @@ public class PedidoController {
         @ApiResponse(responseCode = "403", description = "Acesso negado"),
         @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
     })
-    public Pedido atualizar(@PathVariable Long id, @Valid @RequestBody AtualizarPedidoRequest req, Authentication auth) {
-        Pedido pedido = service.buscarPorId(id);
+    public PedidoDTO atualizar(@PathVariable Long id, @Valid @RequestBody AtualizarPedidoRequest req,
+            Authentication auth) {
+        PedidoDTO pedidoDTO = service.buscarPorIdComoDTO(id);
 
         if (isAdmin(auth)) {
-            pedido.setStatus(req.status());
-        } else {
-            verificarPropriedade(pedido.getUsuario().getEmail(), auth.getName());
-            if (!"CANCELADO".equals(req.status())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cliente só pode cancelar o pedido");
-            }
-            pedido.setStatus("CANCELADO");
+            return service.atualizarStatus(id, req.status());
         }
 
-        return service.salvar(pedido);
+        verificarPropriedade(pedidoDTO.usuario().email(), auth.getName());
+        if (!"CANCELADO".equals(req.status())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cliente só pode cancelar o pedido");
+        }
+        return service.atualizarStatus(id, "CANCELADO");
     }
 
     @DeleteMapping("/{id}")

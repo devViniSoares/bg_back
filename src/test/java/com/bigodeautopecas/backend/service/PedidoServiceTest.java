@@ -65,7 +65,7 @@ class PedidoServiceTest {
         when(produtoRepo.save(any())).thenReturn(produto);
         when(pedidoRepo.save(any())).thenReturn(pedido);
 
-        pedidoService.salvar(pedido);
+        pedidoService.salvarComoDTO(pedido);
 
         assertEquals(7, produto.getEstoque()); // 10 - 3 = 7
         verify(produtoRepo).save(produto);
@@ -76,7 +76,7 @@ class PedidoServiceTest {
         produto.setEstoque(2); // menos que os 3 solicitados
         when(produtoRepo.findById(1L)).thenReturn(Optional.of(produto));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> pedidoService.salvar(pedido));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> pedidoService.salvarComoDTO(pedido));
         assertTrue(ex.getMessage().contains("Estoque insuficiente"));
         verify(pedidoRepo, never()).save(any());
     }
@@ -86,7 +86,7 @@ class PedidoServiceTest {
         pedido.setId(5L); // pedido já existente no banco
         when(pedidoRepo.save(any())).thenReturn(pedido);
 
-        pedidoService.salvar(pedido);
+        pedidoService.salvarComoDTO(pedido);
 
         verify(produtoRepo, never()).findById(any());
         verify(produtoRepo, never()).save(any());
@@ -96,7 +96,7 @@ class PedidoServiceTest {
     void salvar_deveLancarExcecaoQuandoProdutoNaoEncontrado() {
         when(produtoRepo.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> pedidoService.salvar(pedido));
+        assertThrows(RuntimeException.class, () -> pedidoService.salvarComoDTO(pedido));
         verify(pedidoRepo, never()).save(any());
     }
 }

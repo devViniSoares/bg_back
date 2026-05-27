@@ -1,5 +1,8 @@
 package com.bigodeautopecas.backend.service;
 
+import com.bigodeautopecas.backend.dto.CarrinhoDTO;
+import com.bigodeautopecas.backend.dto.ItemCarrinhoDTO;
+import com.bigodeautopecas.backend.dto.ProdutoResumoDTO;
 import com.bigodeautopecas.backend.exception.ResourceNotFoundException;
 import com.bigodeautopecas.backend.model.Carrinho;
 import com.bigodeautopecas.backend.model.ItemCarrinho;
@@ -28,30 +31,42 @@ public class CarrinhoService {
         this.usuarioRepo = usuarioRepo;
     }
 
-    public List<Carrinho> listar() {
-        return repo.findAll();
+    // ── Leitura (retornam DTO) ────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<CarrinhoDTO> listar() {
+        return repo.findAll().stream().map(this::toDTO).toList();
     }
 
-    public List<Carrinho> listarPorEmail(String email) {
-        return repo.findByUsuarioEmail(email).map(List::of).orElse(List.of());
+    @Transactional(readOnly = true)
+    public List<CarrinhoDTO> listarPorEmail(String email) {
+        return repo.findByUsuarioEmail(email)
+                .map(c -> List.of(toDTO(c)))
+                .orElse(List.of());
     }
 
-    public Carrinho salvar(Carrinho c) {
-        return repo.save(c);
+    @Transactional(readOnly = true)
+    public CarrinhoDTO buscarPorIdComoDTO(Long id) {
+        return toDTO(buscarPorId(id));
     }
 
-    public Carrinho buscarPorId(Long id) {
-        return repo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Carrinho não encontrado: " + id));
-    }
+    // ── Escrita (retornam DTO) ────────────────────────────────────────────────
 
-    public void deletar(Long id) {
-        buscarPorId(id);
-        repo.deleteById(id);
+    @Transactional
+    public CarrinhoDTO salvarComoDTO(Carrinho c) {
+        return toDTO(repo.save(c));
     }
 
     @Transactional
-    public Carrinho adicionarItem(String email, Long produtoId, Integer quantidade) {
+    public CarrinhoDTO atualizarItens(Long id, List<ItemCarrinho> novosItens, Usuario novoUsuario) {
+        Carrinho carrinho = buscarPorId(id);
+        carrinho.setItens(novosItens);
+        if (novoUsuario != null) carrinho.setUsuario(novoUsuario);
+        return toDTO(repo.save(carrinho));
+    }
+
+    @Transactional
+    public CarrinhoDTO adicionarItem(String email, Long produtoId, Integer quantidade) {
         Produto produto = produtoRepo.findById(produtoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado: " + produtoId));
 
@@ -76,11 +91,11 @@ public class CarrinhoService {
                         }
                 );
 
-        return repo.save(carrinho);
+        return toDTO(repo.save(carrinho));
     }
 
     @Transactional
-    public Carrinho removerItem(String email, Long itemId) {
+    public CarrinhoDTO removerItem(String email, Long itemId) {
         Carrinho carrinho = repo.findByUsuarioEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Carrinho não encontrado para: " + email));
 
@@ -89,6 +104,46 @@ public class CarrinhoService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item não encontrado no carrinho");
         }
 
-        return repo.save(carrinho);
+        return toDTO(repo.save(carrinho));
+    }
+
+    // ── Uso interno ──────────────────────────────────────────────────────────
+
+    /** Retorna entidade para uso interno (modificações, verificações). */
+    public Carrinho buscarPorId(Long id) {
+        return repo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Carrinho não encontrado: " + id));
+    }
+
+    public void deletar(Long id) {
+        buscarPorId(id);
+        repo.deleteById(id);
+    }
+
+    // ── Mapeamento ───────────────────────────────────────────────────────────
+
+    /** Deve ser chamado dentro de um contexto @Transactional para que o lazy loading funcione. */
+    private CarrinhoDTO toDTO(Carrinho c) {
+        List<ItemCarrinhoDTO> itens = c.getItens().stream()
+                .map(i -> new ItemCarrinhoDTO(
+                        i.getId(),
+                        i.getQuantidade(),
+                        new ProdutoResumoDTO(
+                                i.getProduto().getId(),
+                                i.getProduto().getNome(),
+                                i.getProduto().getPreco(),
+                                i.getProduto().getImagemUrl(),
+                                i.getProduto().getCategoria(),
+                                i.getProduto().getMarca()
+                        )
+                )).toList();
+
+        double total = itens.stream()
+                .mapToDouble(i -> i.produto().preco() * i.quantidade())
+                .sum();
+
+        String email = c.getUsuario() != null ? c.getUsuario().getEmail() : null;
+
+        return new CarrinhoDTO(c.getId(), email, itens, total);
     }
 }
